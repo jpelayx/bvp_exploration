@@ -9,6 +9,11 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   visualization_msgs
 )
+catkin_package(
+  LIBRARIES   bvp_exploration
+  CATKIN_DEPENDS roscpp
+)
+
 
 include_directories(
   include ${catkin_INCLUDE_DIRS}
