@@ -1,0 +1,13 @@
+<launch>
+  <node pkg="bvp_exp" type="bvp_exp_node" name="bvp_exp_node"/>
+  <arg name="window_radius" default="3.5"/>
+  <param name="window_radius" value="$(arg window_radius)"/>
+  <arg name="conv_tol" default="0.5"/>
+  <param name="conv_tol" value="$(arg conv_tol)"/>
+  <arg name="pub_potential" default="1"/>
+  <param name="pub_potential" value="$(arg pub_potential)"/>
+  <arg name="pub_path" default="1"/>
+  <param name="pub_path" value="$(arg pub_path)"/>
+  <arg name="pub_gradient" default="1"/>
+  <param name="pub_gradient" value="$(arg pub_gradient)"/>
+</launch>
