@@ -70,6 +70,7 @@ class PotentialGrid
 
         std::vector<float> normalizedGradient(int,int);
         double normalizeAngle(double);
+        double normalizeAngle2PI(double);
 
         void followPotential();
 
