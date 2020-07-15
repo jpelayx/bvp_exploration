@@ -8,7 +8,7 @@ PotentialGrid::PotentialGrid(ros::NodeHandle *n)
     // n->getParam("pub_path", param_pub_path);
     // n->getParam("window_radius", param_window_radius);
     // n->getParam("conv_tol", param_potential_convergence_tol);
-    param_potential_convergence_tol = 0.000005;
+    param_potential_convergence_tol = 0.0000005;
     param_window_radius = 5.0;
     param_pub_pot = 1;
     param_pub_gradient_vec = 1;
@@ -129,7 +129,7 @@ int PotentialGrid::current_position(geometry_msgs::TransformStamped *pos){
 }
 
 int PotentialGrid::grid_x(geometry_msgs::TransformStamped pos){
-    return (int) (pos.transform.translation.x/resolution + width/2);
+    return (int) ((pos.transform.translation.x)/resolution + width/2);
 }
 
 int PotentialGrid::grid_y(geometry_msgs::TransformStamped pos){
@@ -168,6 +168,10 @@ void PotentialGrid::setGoal(int x, int x_max, int y, int y_max){
                 grid.at(i).at(j)->frontier  = FRONTIER;
                 grid.at(i).at(j)->potential = 0.0;
             }     
+            if(nearOccupied(i,j)){
+                grid[i][j]->occupation = MARKED_OCCUPIED;
+                grid[i][j]->potential  = 1.0;
+            }
         }
     }
 }
@@ -190,38 +194,69 @@ bool PotentialGrid::isFrontier(int i, int j){
     return false;
 }
 
-std::vector<float> PotentialGrid::normalizedGradient(int x, int y){
-    std::vector<float> v(2);
+bool PotentialGrid::nearOccupied(int i, int j){
+    int rad = 2;
+    if(grid[i][j]->occupation != FREE)
+        return false;
+    for(int x = i-rad; x <= i+rad; x++)
+        if(grid[x][j]->occupation == OCCUPIED)
+            return true;
+    for(int y = j-rad; y <= j+rad; y++)
+        if(grid[i][y]->occupation == OCCUPIED)
+            return true;
+    return false;    
+}
+
+std::vector<double> PotentialGrid::normalizedGradient(int x, int y){
+    std::vector<double> v(2);
     mtx.lock();
     v[0] = (grid[x-1][y]->potential - grid[x+1][y]->potential)/2;
     v[1] = (grid[x][y-1]->potential - grid[x][y+1]->potential)/2;
     mtx.unlock();
+    // ROS_INFO("gradient (%f, %f)", v[0], v[1]);
+    if(v[0] == 0 && v[1] == 0)
+        return v;
 
-    // ROS_INFO("unormalized gradient: (%f, %f)", v[0], v[1]);
-    float size_v = sqrt(pow(v[0],2) + pow(v[1],2));
+    double size_v = sqrt(pow(v[0],2) + pow(v[1],2));
     v[0] = (v[0]/size_v);
     v[1] = (v[1]/size_v);
+    
     return v;
 }
 
+int PotentialGrid::gradient2(double *x, double *y){
+    geometry_msgs::TransformStamped pos;
+    if(current_position(&pos) == -1)
+        return -1;
+    
+    mtx.lock();
+    int i = grid_x(pos);
+    int j = grid_y(pos);
+
+    *x = (grid[i-1][j]->potential - grid[i+1][j]->potential)/2;
+    *y = (grid[i][j-1]->potential - grid[i][j+1]->potential)/2;
+    mtx.unlock();
+
+    if(*x == 0 && *y == 0)
+        return 0;
+    
+    double size = sqrt(pow(*x, 2) + pow(*y, 2));
+    *x = *x/size;
+    *y = *y/size;
+
+    return 0;
+}
+
 void PotentialGrid::followPotential(){
-    // coisas:
-    //   mostrar valores dos potenciais em torno da posição do robo
     geometry_msgs::TransformStamped current_pos;
     if(current_position(&current_pos)==-1)
         return;
-
-    tf2::Quaternion rotation;
-    tf2::fromMsg(current_pos.transform.rotation, rotation);
-    double robot_angle = rotation.getAngle(); // [0, 2PI]
-    // robot_angle = normalizeAngle(robot_angle);
-    ROS_INFO("normalized robot angle: %f", robot_angle);
-    
+   
     int x = grid_x(current_pos);
     int y = grid_y(current_pos);
 
-    std::vector<float> gradient = normalizedGradient(x, y);
-    //ROS_INFO("at (%d, %d), gradient (%f, %f)", x, y, gradient[0], gradient[1]);
+    std::vector<double> gradient = normalizedGradient(x, y);
+    ROS_INFO("gradient (%f, %f)", gradient[0], gradient[1]);
     if(param_pub_gradient_vec)
         publishVector(gradient, current_pos);
     if(param_pub_path)
@@ -239,32 +274,44 @@ void PotentialGrid::followPotential(){
     if (gradient[0] == 0 && gradient[1] == 0)
         vel.angular.z = vel.linear.x = 0.0;   
     else{
-        float MAX_VEL = 0.2;
-        double gradient_angle = atan2(gradient[1], gradient[2]); //atan2: [-PI, PI]
+        float MAX_VEL = 0.5;
+        tf2::Quaternion rotation;
+        tf2::fromMsg(current_pos.transform.rotation, rotation);
+        double robot_angle = normalizeAngle(rotation.getAngle()); // [0, 2PI]
+        ROS_INFO("robot angle: %f", robot_angle);
+
+        double gradient_angle = atan2(gradient[1], gradient[0]);
         if(isnan(gradient_angle)){
+            ROS_INFO("nan! gradient (%f, %f)", gradient[0], gradient[1]);
             if(gradient[1] > 0)
-                gradient_angle = M_PI/2;
+                gradient_angle = M_PI_2;
             else
-                gradient_angle = 3*M_PI/2;
+                gradient_angle = -M_PI_2;
         }        
-        gradient_angle = normalizeAngle2PI(gradient_angle);
         ROS_INFO("gradient angle: %f", gradient_angle); 
         
         double phi = gradient_angle - robot_angle; 
-        phi = normalizeAngle(phi);
-        ROS_INFO("normalized phi: %f", phi);
-        
-        vel.angular.z = (2*phi/M_PI)*MAX_VEL; // (phi/90deg) * 0.5;
+        ROS_INFO("phi: %f == %.2f", phi, normalizeAngle(phi));
+        phi = normalizeAngle(phi); 
+        vel.angular.z = (phi/M_PI)*MAX_VEL; // (phi/90deg) * 0.5;
+        vel.linear.x = vel.linear.x * (1 - abs(phi/M_PI));
+        // controlar o x tbm
         if(vel.angular.z > MAX_VEL){
-            vel.angular.z = MAX_VEL;
+            // vel.angular.z = MAX_VEL;
             vel.linear.x  = 0.01;
         }         
-        else if (vel.angular.z < (-1)*MAX_VEL){
-            vel.angular.z = (-1)*MAX_VEL;
+        else if (vel.angular.z < -MAX_VEL){
+            // vel.angular.z = -MAX_VEL;
             vel.linear.x  = 0.01;
         }
     }
     vel_pub.publish(vel);
+}
+
+double PotentialGrid::QUARTtoDEG(geometry_msgs::Quaternion r){
+    tf2::Quaternion q;
+    tf2::fromMsg(r, q);
+    return RADtoDEG(q.getAngle());
 }
 
 double PotentialGrid::normalizeAngle(double angle){
@@ -289,6 +336,18 @@ double PotentialGrid::normalizeAngle2PI(double angle){
     return angle;
 }
 
+double PotentialGrid::normalizeAngleDEG(double a){
+    while(a > 180.0)
+        a -= 360.0;
+    while(a < -180.0)
+        a += 360.0;
+    return a;
+}
+
+double PotentialGrid::RADtoDEG(double a){
+    return 180.0*a/M_PI;
+}
+
 void PotentialGrid::publishPotentialField(nav_msgs::MapMetaData info){
     nav_msgs::OccupancyGrid pf;
     pf.info = info;
@@ -301,7 +360,15 @@ void PotentialGrid::publishPotentialField(nav_msgs::MapMetaData info){
     potential_pub.publish(pf);
 }
 
-void PotentialGrid::publishVector(std::vector<float> v, geometry_msgs::TransformStamped robot_transform){
+double PotentialGrid::smallArc(double a1, double a2){
+    // for angles [0, 2PI)
+    double t = a1 - a2;
+    if (t > M_PI)
+     return 0.0;
+    return 0.0;
+}
+
+void PotentialGrid::publishVector(std::vector<double> v, geometry_msgs::TransformStamped robot_transform){
     uint32_t arrow = visualization_msgs::Marker::ARROW;
     visualization_msgs::Marker mk;
     mk.header.frame_id = "map";
@@ -310,12 +377,13 @@ void PotentialGrid::publishVector(std::vector<float> v, geometry_msgs::Transform
     mk.id = 0;
     mk.type = arrow;
     mk.action = visualization_msgs::Marker::ADD;
+
     mk.pose.position.x = robot_transform.transform.translation.x;
     mk.pose.position.y = robot_transform.transform.translation.y;
     mk.pose.position.z = robot_transform.transform.translation.z;
 
     tf2::Quaternion rotation;
-    rotation.setEuler(0.0, asin(v[1]), 0.0);
+    rotation.setEuler(0.0, asin(v[0]), 0.0);
     mk.pose.orientation = tf2::toMsg(rotation);
 
     mk.color.r = 0.0f;

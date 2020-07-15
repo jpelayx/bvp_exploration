@@ -16,7 +16,7 @@
 #define OCC_TRESH 70
 #define FREE_TRESH 30
 
-enum OccType {UNEXPLORED, OCCUPIED, FREE};
+enum OccType {UNEXPLORED, OCCUPIED, MARKED_OCCUPIED, FREE};
 enum FrontType {FRONTIER, MARKED_FRONTIER, NDA};
 
 class Cell
@@ -63,19 +63,26 @@ class PotentialGrid
         void updatePotential(int,int,int,int);
         void setGoal(int,int,int,int);
         bool isFrontier(int,int);
+        bool nearOccupied(int,int);
 
         int current_position(geometry_msgs::TransformStamped*);
         int grid_x(geometry_msgs::TransformStamped);
         int grid_y(geometry_msgs::TransformStamped);
 
-        std::vector<float> normalizedGradient(int,int);
+        std::vector<double> normalizedGradient(int,int);
+        int gradient2(double*, double*);
+
         double normalizeAngle(double);
         double normalizeAngle2PI(double);
+        double normalizeAngleDEG(double);
+        double RADtoDEG(double);
+        double smallArc(double, double);
+        double QUARTtoDEG(geometry_msgs::Quaternion);
 
         void followPotential();
 
         void publishPotentialField(nav_msgs::MapMetaData);
-        void publishVector(std::vector<float>, geometry_msgs::TransformStamped);
+        void publishVector(std::vector<double>, geometry_msgs::TransformStamped);
         void publishPath(geometry_msgs::TransformStamped); 
 
         int width, height;
