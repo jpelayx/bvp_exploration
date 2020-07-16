@@ -8,7 +8,7 @@ int main (int argc, char **argv){
     ros::init(argc, argv, "potential");
     ros::NodeHandle n;
 
-    ros::Rate loop_rate(5);
+    ros::Rate loop_rate(15);
 
     //PotentialGrid g(&n, PUBLISH, WINDOW_RADIUS, CONV_ERROR);
     PotentialGrid g(&n);

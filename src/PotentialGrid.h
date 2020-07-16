@@ -70,14 +70,8 @@ class PotentialGrid
         int grid_y(geometry_msgs::TransformStamped);
 
         std::vector<double> normalizedGradient(int,int);
-        int gradient2(double*, double*);
-
+        
         double normalizeAngle(double);
-        double normalizeAngle2PI(double);
-        double normalizeAngleDEG(double);
-        double RADtoDEG(double);
-        double smallArc(double, double);
-        double QUARTtoDEG(geometry_msgs::Quaternion);
 
         void followPotential();
 
