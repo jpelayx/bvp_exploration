@@ -38,6 +38,7 @@ class PotentialGrid
         ros::Publisher  potential_pub;
         ros::Publisher vector_pub;
         ros::Publisher path_pub;
+        ros::Publisher vector_field_pub;
         ros::Publisher vel_pub;
 
         nav_msgs::Path path;
@@ -78,6 +79,7 @@ class PotentialGrid
         void publishPotentialField(nav_msgs::MapMetaData);
         void publishVector(std::vector<double>, geometry_msgs::TransformStamped);
         void publishPath(geometry_msgs::TransformStamped); 
+        void publishVectorField();
 
         int width, height;
         double resolution;

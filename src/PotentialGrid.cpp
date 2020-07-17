@@ -1,5 +1,6 @@
 #include "PotentialGrid.h"
 #include <tf2/utils.h>
+#include <std_msgs/ColorRGBA.h>
 
 PotentialGrid::PotentialGrid(ros::NodeHandle *n)
 {
@@ -33,6 +34,7 @@ PotentialGrid::PotentialGrid(ros::NodeHandle *n)
         path.header.frame_id = "map";
         path.header.seq = 0;
     }
+    vector_field_pub = n->advertise<visualization_msgs::Marker>("vector_field", 1);
 }
 
 void PotentialGrid::getMap(const nav_msgs::OccupancyGrid::ConstPtr& map){
@@ -106,6 +108,7 @@ void PotentialGrid::getMap(const nav_msgs::OccupancyGrid::ConstPtr& map){
     }
     ROS_INFO("updating potential (%d to %d, %d to %d", x0, xf, y0, yf);
     updatePotential(x0, xf, y0, yf);
+    publishVectorField();
     mtx.unlock();
 
     // std::vector<float> grad_descent = normalizedGradient(current_grid_x,current_grid_y);
@@ -208,10 +211,10 @@ bool PotentialGrid::nearOccupied(int i, int j){
 
 std::vector<double> PotentialGrid::normalizedGradient(int x, int y){
     std::vector<double> v(2);
-    mtx.lock();
+    // mtx.lock();
     v[0] = (grid[x-1][y]->potential - grid[x+1][y]->potential)/2;
     v[1] = (grid[x][y-1]->potential - grid[x][y+1]->potential)/2;
-    mtx.unlock();
+    // mtx.unlock();
 
     if(v[0] == 0 && v[1] == 0)
         return v;
@@ -227,7 +230,9 @@ void PotentialGrid::followPotential(){
     if(current_position(&pos)==-1)
         return;
    
+    mtx.lock();
     std::vector<double> gradient = normalizedGradient(grid_x(pos), grid_y(pos));
+    mtx.unlock();
     ROS_INFO("gradient (%f, %f)", gradient[0], gradient[1]);
     if(param_pub_gradient_vec)
         publishVector(gradient, pos);
@@ -245,7 +250,7 @@ void PotentialGrid::followPotential(){
    
     if (gradient[0] == 0 && gradient[1] == 0){
         vel.angular.z = vel.linear.x = 0.0;   
-        vel.linear.x = 0.01;
+        vel.linear.x = -0.01;
     }
     else{
         float MAX_VEL = 0.7;
@@ -307,7 +312,7 @@ void PotentialGrid::publishPotentialField(nav_msgs::MapMetaData info){
     potential_pub.publish(pf);
 }
 
-void PotentialGrid::publishVector(std::vector<double> v, geometry_msgs::TransformStamped robot_transform){
+void PotentialGrid::publishVector(std::vector<double> v, geometry_msgs::TransformStamped rob){
     uint32_t arrow = visualization_msgs::Marker::ARROW;
     visualization_msgs::Marker mk;
     mk.header.frame_id = "map";
@@ -317,28 +322,69 @@ void PotentialGrid::publishVector(std::vector<double> v, geometry_msgs::Transfor
     mk.type = arrow;
     mk.action = visualization_msgs::Marker::ADD;
 
-    mk.pose.position.x = robot_transform.transform.translation.x;
-    mk.pose.position.y = robot_transform.transform.translation.y;
-    mk.pose.position.z = robot_transform.transform.translation.z;
-
-    tf2::Quaternion rotation;
-    float a = atan2(v[1], v[0]);
-    if (a < 0)  
-        a += 2*M_PI;
-    rotation.setEuler(0.0, a, 0.0);
-    mk.pose.orientation = tf2::toMsg(rotation);
+    mk.points.resize(2);
+    mk.points[0].x = rob.transform.translation.x;
+    mk.points[0].y = rob.transform.translation.y;
+    mk.points[0].z = rob.transform.translation.z;
+    mk.points[1].x = mk.points[0].x + v[0]*0.25;
+    mk.points[1].y = mk.points[0].y + v[1]*0.25;
+    mk.points[1].z = mk.points[0].z; 
 
     mk.color.r = 0.0f;
     mk.color.g = 1.0f;
     mk.color.b = 0.0f;
     mk.color.a = 1.0f;
 
-    mk.scale.x =0.25;
+    mk.scale.x =0.02;
     mk.scale.y =0.02;
-    mk.scale.z =0.02;
+    mk.scale.z =0.10;
 
     mk.lifetime = ros::Duration();
     vector_pub.publish(mk);
+}
+
+void PotentialGrid::publishVectorField(){
+    visualization_msgs::Marker m;
+    m.header.frame_id = "map";
+    m.header.stamp    = ros::Time();
+    m.ns = "vector_field";
+    m.id = 0;
+    m.type   = visualization_msgs::Marker::LINE_LIST;
+    m.action = visualization_msgs::Marker::ADD;
+    m.scale.x = resolution*0.10;
+
+    m.color.r = 1.0f;
+    m.color.g = 0.0f;
+    m.color.b = 1.0f;
+    m.color.a = 1.0f;
+
+    m.pose.orientation.x = 0;
+    m.pose.orientation.y = 0;
+    m.pose.orientation.z = 0;
+    m.pose.orientation.w = 1;
+    m.pose.position.x = -10;
+    m.pose.position.y = -10;
+    m.pose.position.z = 0;
+
+    for(int i = 0; i < grid.size(); i+=2){
+        for(int j = 0; j < grid[j].size(); j+=2){
+            if(grid[i][j]->occupation == FREE){
+                std::vector<double> g = normalizedGradient(i, j);
+                geometry_msgs::Point p0, pf;
+                p0.x = resolution*i + resolution/2;
+                p0.y = resolution*j + resolution/2;
+                p0.z = 0.0;
+
+                pf.x = p0.x + (resolution*1.0)*g[0];
+                pf.y = p0.y + (resolution*1.0)*g[1];
+                pf.z = 0.0;
+                
+                m.points.push_back(p0);
+                m.points.push_back(pf);
+            }
+        }
+    }
+    vector_field_pub.publish(m);
 }
 
 void PotentialGrid::publishPath(geometry_msgs::TransformStamped current_pos){
