@@ -40,6 +40,7 @@ class PotentialGrid
         ros::Publisher path_pub;
         ros::Publisher vector_field_pub;
         ros::Publisher vel_pub;
+        ros::Publisher ponto;
 
         nav_msgs::Path path;
         tf2_ros::Buffer tf_buffer;
@@ -48,6 +49,7 @@ class PotentialGrid
         std::vector<std::vector<Cell*> > grid;
         
         int current_grid_x, current_grid_y;
+        geometry_msgs::Point map0;
 
         int param_pub_pot,
             param_pub_gradient_vec,
