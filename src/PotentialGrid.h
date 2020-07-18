@@ -64,7 +64,7 @@ class PotentialGrid
         void getMap(const nav_msgs::OccupancyGrid::ConstPtr&);
 
         void updatePotential(int,int,int,int);
-        void setGoal(int,int,int,int);
+        bool setGoal(int,int,int,int);
         bool isFrontier(int,int);
         bool nearOccupied(int,int);
 

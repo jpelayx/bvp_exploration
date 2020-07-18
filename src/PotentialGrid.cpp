@@ -108,7 +108,6 @@ void PotentialGrid::getMap(const nav_msgs::OccupancyGrid::ConstPtr& map){
                 grid[i][j]->update(map->data[i+j*width]);
             }
         }
-        //TODO: se nao achar fronteira update global
     }
     ROS_INFO("updating potential (%d to %d, %d to %d", x0, xf, y0, yf);
     updatePotential(x0, xf, y0, yf);
@@ -146,7 +145,13 @@ int PotentialGrid::grid_y(geometry_msgs::TransformStamped pos){
 }
 
 void PotentialGrid::updatePotential(int x, int x_max, int y, int y_max){
-    setGoal(0,width,0,height);
+    if(!setGoal(x,x_max,y,y_max)){
+        x = 0;
+        x_max = width;
+        y = 0;
+        y_max = height;
+    }
+    
     // ROS_INFO("goals set");
     double error = 100;
     int iterations = 0;
@@ -170,19 +175,23 @@ void PotentialGrid::updatePotential(int x, int x_max, int y, int y_max){
     ROS_INFO("potential converged with %d iterations", iterations);
 }
 
-void PotentialGrid::setGoal(int x, int x_max, int y, int y_max){
+bool PotentialGrid::setGoal(int x, int x_max, int y, int y_max){
+    bool frontier_found = false;
     for(int i=x; i<x_max; i++){
         for(int j=y; j<y_max; j++){
             if(isFrontier(i,j)){
+                if(!frontier_found)
+                    frontier_found = true;
                 grid.at(i).at(j)->frontier  = FRONTIER;
                 grid.at(i).at(j)->potential = 0.0;
             }     
             if(nearOccupied(i,j)){
-                // grid[i][j]->occupation = MARKED_OCCUPIED;
-                // grid[i][j]->potential  = 1.0;
+                grid[i][j]->occupation = MARKED_OCCUPIED;
+                grid[i][j]->potential  = 1.0;
             }
         }
     }
+    return frontier_found;
 }
 
 bool PotentialGrid::isFrontier(int i, int j){
@@ -204,7 +213,7 @@ bool PotentialGrid::isFrontier(int i, int j){
 }
 
 bool PotentialGrid::nearOccupied(int i, int j){
-    int rad = 2;
+    int rad = 3;
     if(grid[i][j]->occupation != FREE)
         return false;
     for(int x = i-rad; x <= i+rad; x++)
