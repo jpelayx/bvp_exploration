@@ -16,7 +16,7 @@
 #define OCC_TRESH 70
 #define FREE_TRESH 30
 
-enum OccType {UNEXPLORED, OCCUPIED, MARKED_OCCUPIED, FREE};
+enum OccType {UNEXPLORED, OCCUPIED, FREE};
 enum FrontType {FRONTIER, MARKED_FRONTIER, NDA};
 
 class Cell
@@ -35,12 +35,12 @@ class PotentialGrid
 {
     private:
         ros::Subscriber map_sub;
-        ros::Publisher  potential_pub;
+        ros::Publisher potential_pub;
         ros::Publisher vector_pub;
         ros::Publisher path_pub;
         ros::Publisher vector_field_pub;
         ros::Publisher vel_pub;
-        ros::Publisher ponto;
+        ros::Publisher front_pub;
 
         nav_msgs::Path path;
         tf2_ros::Buffer tf_buffer;
@@ -48,7 +48,6 @@ class PotentialGrid
 
         std::vector<std::vector<Cell*> > grid;
         
-        int current_grid_x, current_grid_y;
         geometry_msgs::Point map0;
 
         int param_pub_pot,
@@ -65,12 +64,15 @@ class PotentialGrid
 
         void updatePotential(int,int,int,int);
         bool setGoal(int,int,int,int);
+        void expandObstacles(int,int,int,int);
         bool isFrontier(int,int);
         bool nearOccupied(int,int);
 
         int current_position(geometry_msgs::TransformStamped*);
         int grid_x(geometry_msgs::TransformStamped);
         int grid_y(geometry_msgs::TransformStamped);
+        double worldX(int); 
+        double worldY(int); 
 
         std::vector<double> normalizedGradient(int,int);
         
@@ -82,6 +84,7 @@ class PotentialGrid
         void publishVector(std::vector<double>, geometry_msgs::TransformStamped);
         void publishPath(geometry_msgs::TransformStamped); 
         void publishVectorField();
+        void publishFrontiers(std::vector<int>);
 
         int width, height;
         double resolution;
