@@ -157,6 +157,7 @@ void PotentialGrid::updatePotential(int x, int x_max, int y, int y_max){
         y_max = height;
         setGoal(x, x_max, y, y_max);
     }
+    expandObstacles(x,x_max,y,y_max);
     
     // ROS_INFO("goals set");
     double error = 100;
@@ -183,6 +184,7 @@ void PotentialGrid::updatePotential(int x, int x_max, int y, int y_max){
 
 bool PotentialGrid::setGoal(int x, int x_max, int y, int y_max){
     bool frontier_found = false;
+    ROS_INFO("setting up frontiers");
     for(int i=x; i<x_max; i++){
         for(int j=y; j<y_max; j++){
             if(isFrontier(i,j)){
@@ -196,10 +198,12 @@ bool PotentialGrid::setGoal(int x, int x_max, int y, int y_max){
     if(!frontier_found)
         return false;
     
+    ROS_INFO("frontiers found");
+    
     std::vector<int> frontier_centers;
     
     for(int i=x; i<x_max; i++)
-        for(int j=x; j<y_max; j++){
+        for(int j=x; j<y_max; j++)
             if(grid[i][j]->frontier == FRONTIER){
                 std::vector<int> frontier;
                 geometry_msgs::Point center;
@@ -228,7 +232,7 @@ bool PotentialGrid::setGoal(int x, int x_max, int y, int y_max){
                     frontier.push_back(y_front);
 
                     for(int x_adj=x_front-1; x_adj<= x_front+1; x_adj++)
-                        for(int y_adj=j-1; y_adj<=y_front+1; y_adj++)
+                        for(int y_adj=y_front-1; y_adj<=y_front+1; y_adj++)
                             if(grid[x_adj][y_adj]->frontier == FRONTIER){
                                 grid[x_adj][y_adj]->frontier = MARKED_FRONTIER;
                                 q.push(x_adj);
@@ -245,17 +249,18 @@ bool PotentialGrid::setGoal(int x, int x_max, int y, int y_max){
                 for(int n=0; n<frontier.size(); n+=2){
                     float dist = sqrt(pow(center.x-worldX(frontier[n]), 2) + pow(center.y-worldY(frontier[n+1]), 2));
                     if(dist < min_dist){
-                        closest_x = n;
-                        closest_y = n+1;
+                        closest_x = frontier[n];
+                        closest_y = frontier[n+1];
                         min_dist = dist;
                     }
                 }
                 frontier_centers.push_back(closest_x);
                 frontier_centers.push_back(closest_y);
             }
-        }
-    for(int n=0; n<frontier_centers.size(); n+=2)
+    for(int n=0; n<frontier_centers.size(); n+=2){
+        ROS_INFO("center: %f, %f", worldX(frontier_centers[n]), worldY(frontier_centers[n+1]));
         grid[frontier_centers[n]][frontier_centers[n+1]]->potential = 0.0;
+    }
     publishFrontiers(frontier_centers);
     return true;    
 }
@@ -526,6 +531,7 @@ void PotentialGrid::publishFrontiers(std::vector<int> centers){
     f.cell_width  = resolution;
     f.header.frame_id = "map";
     f.header.stamp    = ros::Time();
+    ROS_INFO("n frontiers = %d", (int)(centers.size()/2));
     for(int n=0; n<centers.size(); n+=2){
         geometry_msgs::Point p;
         p.x = worldX(centers[n]);
@@ -567,7 +573,7 @@ void Cell::update(int v){
         }
     }
 }
-
+ 
 int Cell::show(){
     if(occupation == UNEXPLORED)
         return -1;

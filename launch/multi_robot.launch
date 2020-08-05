@@ -1,0 +1,12 @@
+<launch>
+  
+
+  <group ns = $(arg frist_tb)>
+
+  </group>
+
+  <group ns = $(arg second_tb)>
+
+  </group>
+
+</launch>
