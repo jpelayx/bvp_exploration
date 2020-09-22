@@ -134,7 +134,6 @@ int PotentialGrid::current_position(geometry_msgs::TransformStamped *pos){
 }
 
 int PotentialGrid::grid_x(geometry_msgs::TransformStamped pos){
-    // return (int) (pos.transform.translation.x/resolution + width/2);
     return (int) ((pos.transform.translation.x - map0.x)/resolution);
 }
 
@@ -145,6 +144,7 @@ int PotentialGrid::grid_y(geometry_msgs::TransformStamped pos){
 double PotentialGrid::worldX(int x){
     return (x * resolution) + map0.x + resolution/2;
 }
+
 double PotentialGrid::worldY(int y){
     return (y * resolution) + map0.y + resolution/2;
 }
@@ -190,7 +190,7 @@ bool PotentialGrid::setGoal(int x, int x_max, int y, int y_max){
             if(isFrontier(i,j)){
                 if(!frontier_found)
                     frontier_found = true;
-                grid.at(i).at(j)->frontier  = FRONTIER;
+                grid[i][j]->frontier  = FRONTIER;
                 // grid.at(i).at(j)->potential = 0.0;
             }     
         }
@@ -226,8 +226,10 @@ bool PotentialGrid::setGoal(int x, int x_max, int y, int y_max){
                     int y_front = q.front();
                     q.pop();
 
-                    center.x += worldX(x_front);
-                    center.y += worldY(y_front);                    
+                    // center.x += worldX(x_front);
+                    // center.y += worldY(y_front);
+                    center.x += x_front; 
+                    center.y += y_front;                     
                     frontier.push_back(x_front);
                     frontier.push_back(y_front);
 
@@ -247,7 +249,7 @@ bool PotentialGrid::setGoal(int x, int x_max, int y, int y_max){
                 float min_dist = FLT_MAX;
                 int closest_x, closest_y;
                 for(int n=0; n<frontier.size(); n+=2){
-                    float dist = sqrt(pow(center.x-worldX(frontier[n]), 2) + pow(center.y-worldY(frontier[n+1]), 2));
+                    float dist = sqrt(pow(center.x-frontier[n], 2) + pow(center.y-frontier[n+1], 2));
                     if(dist < min_dist){
                         closest_x = frontier[n];
                         closest_y = frontier[n+1];
@@ -258,7 +260,7 @@ bool PotentialGrid::setGoal(int x, int x_max, int y, int y_max){
                 frontier_centers.push_back(closest_y);
             }
     for(int n=0; n<frontier_centers.size(); n+=2){
-        ROS_INFO("center: %f, %f", worldX(frontier_centers[n]), worldY(frontier_centers[n+1]));
+        ROS_INFO("center: %d, %d == %f, %f", frontier_centers[n], frontier_centers[n+1], worldX(frontier_centers[n]), worldY(frontier_centers[n+1]));
         grid[frontier_centers[n]][frontier_centers[n+1]]->potential = 0.0;
     }
     publishFrontiers(frontier_centers);
@@ -534,8 +536,8 @@ void PotentialGrid::publishFrontiers(std::vector<int> centers){
     ROS_INFO("n frontiers = %d", (int)(centers.size()/2));
     for(int n=0; n<centers.size(); n+=2){
         geometry_msgs::Point p;
-        p.x = worldX(centers[n]);
-        p.y = worldY(centers[n+1]);
+        p.x = centers[n];
+        p.y = centers[n+1];
         p.z = 0.0;
         f.cells.push_back(p);
     }
