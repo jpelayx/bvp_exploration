@@ -20,9 +20,11 @@ PotentialGrid::PotentialGrid(ros::NodeHandle *n, std::string name_space)
 
     std::cout << "namespace: " << name_space << std::endl;
     ns="";
-     if(name_space != "/")
+     if(name_space != "/"){
         ns = name_space+"/";
-
+        // ns.erase(0,1);
+    }
+    std::cout << "ns: " << ns << std::endl;
     map_sub = n->subscribe(ns+"map", 1, &PotentialGrid::getMap, this);
     // map_sub = n->subscribe("/map",1,&PotentialGrid::getMap, this);
     tf_listener = new tf2_ros::TransformListener (tf_buffer);
@@ -129,7 +131,9 @@ void PotentialGrid::getMap(const nav_msgs::OccupancyGrid::ConstPtr& map){
 int PotentialGrid::current_position(geometry_msgs::TransformStamped *pos){
     geometry_msgs::TransformStamped current_pos;
     try{
-            current_pos = tf_buffer.lookupTransform(ns+"map", ns+"base_link", ros::Time(0));
+            std::string name = ns;
+            name.erase(0,1);
+            current_pos = tf_buffer.lookupTransform(name+"map", name+"base_link", ros::Time(0));
             // current_pos = tf_buffer.lookupTransform("map", "base_link", ros::Time(0));
             *pos = current_pos;
             return 0;
