@@ -16,7 +16,7 @@
 #define OCC_TRESH 70
 #define FREE_TRESH 30
 
-enum OccType {UNEXPLORED, OCCUPIED, FREE};
+enum OccType {UNEXPLORED, OCCUPIED, OCCUPIED_EXP, FREE};
 enum FrontType {FRONTIER, MARKED_FRONTIER, NDA};
 
 class Cell
