@@ -12,6 +12,7 @@
 #include <visualization_msgs/Marker.h>
 #include <math.h>
 #include <mutex>
+#include <iostream>
 
 #define OCC_TRESH 70
 #define FREE_TRESH 30
@@ -57,9 +58,11 @@ class PotentialGrid
                param_potential_convergence_tol;
 
         std::mutex mtx;
+
+        std::string ns;
     
     public:
-        PotentialGrid(ros::NodeHandle*);
+        PotentialGrid(ros::NodeHandle*, std::string name_space);
         void getMap(const nav_msgs::OccupancyGrid::ConstPtr&);
 
         void updatePotential(int,int,int,int);

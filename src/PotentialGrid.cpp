@@ -4,7 +4,7 @@
 #include <geometry_msgs/PointStamped.h>
 #include <queue>
 
-PotentialGrid::PotentialGrid(ros::NodeHandle *n)
+PotentialGrid::PotentialGrid(ros::NodeHandle *n, std::string name_space)
 {
     initialized = 0;
     // n->getParam("pub_potential", param_pub_pot);
@@ -18,26 +18,32 @@ PotentialGrid::PotentialGrid(ros::NodeHandle *n)
     param_pub_gradient_vec = 1;
     param_pub_path = 1;
 
-    map_sub = n->subscribe("map", 1, &PotentialGrid::getMap, this);
+    std::cout << "namespace: " << name_space << std::endl;
+    ns="";
+     if(name_space != "/")
+        ns = name_space+"/";
+
+    map_sub = n->subscribe(ns+"map", 1, &PotentialGrid::getMap, this);
+    // map_sub = n->subscribe("/map",1,&PotentialGrid::getMap, this);
     tf_listener = new tf2_ros::TransformListener (tf_buffer);
     
     vel_pub = n->advertise<geometry_msgs::Twist>("cmd_vel",1);
 
     if(param_pub_pot){
         ROS_INFO("publishing to /potential_field");
-        potential_pub = n->advertise<nav_msgs::OccupancyGrid>("potential_field",1);
+        potential_pub = n->advertise<nav_msgs::OccupancyGrid>(ns+"potential_field",1);
     }
     if(param_pub_gradient_vec){
         ROS_INFO("publishing to /gradient");
-        vector_pub = n->advertise<visualization_msgs::Marker>("gradient",1);
+        vector_pub = n->advertise<visualization_msgs::Marker>(ns+"gradient",1);
     }
     if(param_pub_path){
-        path_pub = n->advertise<nav_msgs::Path>("path",1);
+        path_pub = n->advertise<nav_msgs::Path>(ns+"path",1);
         path.header.frame_id = "map";
         path.header.seq = 0;
     }
-    vector_field_pub = n->advertise<visualization_msgs::Marker>("vector_field", 1);
-    front_pub = n->advertise<nav_msgs::GridCells>("frontiers", 1);
+    vector_field_pub = n->advertise<visualization_msgs::Marker>(ns+"vector_field", 1);
+    front_pub = n->advertise<nav_msgs::GridCells>(ns+"frontiers", 1);
 }
 
 void PotentialGrid::getMap(const nav_msgs::OccupancyGrid::ConstPtr& map){
@@ -123,7 +129,8 @@ void PotentialGrid::getMap(const nav_msgs::OccupancyGrid::ConstPtr& map){
 int PotentialGrid::current_position(geometry_msgs::TransformStamped *pos){
     geometry_msgs::TransformStamped current_pos;
     try{
-            current_pos = tf_buffer.lookupTransform("map", "base_link", ros::Time(0));
+            current_pos = tf_buffer.lookupTransform(ns+"map", ns+"base_link", ros::Time(0));
+            // current_pos = tf_buffer.lookupTransform("map", "base_link", ros::Time(0));
             *pos = current_pos;
             return 0;
     }

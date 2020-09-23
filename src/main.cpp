@@ -10,8 +10,9 @@ int main (int argc, char **argv){
 
     ros::Rate loop_rate(15);
 
-    //PotentialGrid g(&n, PUBLISH, WINDOW_RADIUS, CONV_ERROR);
-    PotentialGrid g(&n);
+    std::string ns = ros::this_node::getNamespace();
+
+    PotentialGrid g(&n, ns);
 
     while(ros::ok())
     {
