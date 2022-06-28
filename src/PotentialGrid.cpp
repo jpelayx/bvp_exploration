@@ -7,16 +7,11 @@
 PotentialGrid::PotentialGrid(ros::NodeHandle *n, std::string name_space)
 {
     initialized = 0;
-    // n->getParam("pub_potential", param_pub_pot);
-    // n->getParam("pub_gradient", param_pub_gradient_vec);
-    // n->getParam("pub_path", param_pub_path);
-    // n->getParam("window_radius", param_window_radius);
-    // n->getParam("conv_tol", param_potential_convergence_tol);
-    param_potential_convergence_tol = 0.00000001;
-    param_window_radius = 3.5;
-    param_pub_pot = 1;
-    param_pub_gradient_vec = 1;
-    param_pub_path = 1;
+    n->getParam("pub_potential", param_pub_pot);
+    n->getParam("pub_gradient", param_pub_gradient_vec);
+    n->getParam("pub_path", param_pub_path);
+    n->getParam("window_radius", param_window_radius);
+    n->getParam("conv_tol", param_potential_convergence_tol);
 
     std::cout << "namespace: " << name_space << std::endl;
     ns="";
